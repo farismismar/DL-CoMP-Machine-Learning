@@ -19,22 +19,23 @@ Y = (x3 <= 0.1);  % Did BLER target fulfillment succeed?
 X_training = X;
 Y_training = Y;
 
-figure, histogram(Y_training, 'BinWidth', 0.2)
-grid on
+%figure, histogram(Y_training, 'BinWidth', 0.2)
+%grid on
 
 % Perform SMOTE - K = 5
 %[X_training, Y_training] = ADASYN(X_training, Y_training);
 
-xlabel('Label')
-ylabel('Count')
-title('Classification Balance - Prior')
+%xlabel('Label')
+%ylabel('Count')
+%title('Classification Balance - Prior')
 
 %  'KernelFunction', 'rbf', ... %rbf linear gaussian polynomial
 SVMModel = fitcsvm(X_training, Y_training, ...
     'ClassNames',[0 1], ...
     'Standardize', true, ...
     'OptimizeHyperparameters','all', ...
-    'HyperparameterOptimizationOptions',struct('MaxObjectiveEvaluations', 5)); 
+    'HyperparameterOptimizationOptions',struct('MaxObjectiveEvaluations', 5, ...
+        'ShowPlots', false)); 
 
 % Perform K-Fold Cross Validation
 CVSVMModel = crossval(SVMModel);

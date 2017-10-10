@@ -28,7 +28,7 @@ global staticCoMP;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin
-staticCoMP = true;
+staticCoMP = false;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 simulation_type = 'tri_sector_plus_femtocells';
@@ -59,7 +59,7 @@ LTE_config.RandStreamSeed             = 7;  % my lucky number.
 LTE_config.scheduler                  = 'prop fair Sun'; 
 LTE_config.network_source             = 'generated'; % hexagonals
 LTE_config.network_geometry           = 'regular_hexagonal_grid';
-LTE_config.nr_eNodeB_rings            = 0; % 1 ring basically means a center site plus six sites surrounding it. 0 is single macro.
+LTE_config.nr_eNodeB_rings            = 1; % 1 ring basically means a center site plus six sites surrounding it. 0 is single macro.
 LTE_config.inter_eNodeB_distance      = 100; % 100m apart.
 %LTE_config.antenna_azimuth_offsett    = 0;  % Changes the reference of the azimuth at 0 degrees.
 LTE_config.macroscopic_pathloss_model = 'cost231'; % Good for HN and 2100 MHz simulations.
@@ -84,7 +84,7 @@ LTE_config.antenna.frequency = 2140;
 LTE_config.add_femtocells             = true;  % femto but configured as a pico with power
 LTE_config.femtocells_config.tx_power_W = 10^((37-30)/10); % 37 dBm is 5W.
 LTE_config.femtocells_config.spatial_distribution = 'homogenous density';
-LTE_config.femtocells_config.femtocells_per_km2 = 3;
+LTE_config.femtocells_config.femtocells_per_km2 = 50; % 3 for case 1 and 50 for case 2
 %LTE_config.femtocells_config.macroscopic_pathloss_model = 'cost231'; % 'dual slope'
 
 LTE_config.compact_results_file       = true;
@@ -103,18 +103,30 @@ LTE_config.pregenerated_ff_file       = 'auto';
 LTE_config.trace_version              = 'v1';    % 'v1' for pregenerated precoding. 'v2' for run-time-applied precoding
 
 LTE_config.simulation_time_tti        = Total_Time;  %LTE_config.UE.antenna_gain: should be 20*compl
-output_results_file = LTE_sim_main(LTE_config);
+%%%%%%%%%%%%%
+output_results_file = LTE_sim_main(LTE_config); % This is the main line... do not re run it unless you know what you are doing.
+%%%%%%%%%%%%%
+simulation_data                   = load(output_results_file);
 
 % Manually place sites
-simulation_data                   = load(output_results_file);
-simulation_data.sites(1).pos      = [0 0];  % Macro
-simulation_data.sites(2).pos      = [cos(2*pi/3) sin(2*pi/3)] * LTE_config.inter_eNodeB_distance;
-simulation_data.sites(3).pos      = [cos(240*pi/180) sin(240*pi/180)] * LTE_config.inter_eNodeB_distance;
-simulation_data.sites(4).pos      = [cos(360*pi/180) sin(360*pi/180)] * LTE_config.inter_eNodeB_distance;
-simulation_data.sites(2).site_type = 'femto';  
-simulation_data.sites(3).site_type = 'femto';  
-simulation_data.sites(4).site_type = 'femto';  
+%simulation_data.sites(1).pos      = [0 0];  % Macro
+%simulation_data.sites(2).pos      = [cos(2*pi/3) sin(2*pi/3)] * LTE_config.inter_eNodeB_distance;
+%simulation_data.sites(3).pos      = [cos(240*pi/180) sin(240*pi/180)] * LTE_config.inter_eNodeB_distance;
+%simulation_data.sites(4).pos      = [cos(360*pi/180) sin(360*pi/180)] * LTE_config.inter_eNodeB_distance;
 
+% Case 1: 
+% Site 1 = Macro
+% Sites 2, 3, 4 = Femto
+% [simulation_data.sites.site_type] macro or femto
+% [simulation_data.sites.id] what site IDs are there
+% simulation_data.sites(3).sectors.eNodeB_id which cell IDs are in site 3
+%simulation_data.sites(2).site_type = 'femto';
+%simulation_data.sites(3).site_type = 'femto';  
+%simulation_data.sites(4).site_type = 'femto';  
+
+% Case 2:
+% 7 macro cells and 8-18 are pico/femto, which correspond to cells
+% 22-32.
 GUI_handles.aggregate_results_GUI = LTE_GUI_show_aggregate_results(simulation_data);
 GUI_handles.positions_GUI         = LTE_GUI_show_UEs_and_cells(simulation_data,GUI_handles.aggregate_results_GUI);
 
