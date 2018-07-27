@@ -23,12 +23,16 @@ DLCoMPSINRMin = 3;
 global epsilon;
 epsilon = 0.12;
 
+seed = 7;
+rng(seed,'twister');
+
 % Scenario flag.
 global staticCoMP;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin
 staticCoMP = false;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 simulation_type = 'tri_sector_plus_femtocells';
@@ -49,17 +53,17 @@ LTE_config.debug_level                = 1; % basic output. % 2 is buggy.
 LTE_config.bandwidth                  = 10e6; % 10 MHz
 LTE_config.frequency                  = 2.1e9; % 2.1 GHz
 LTE_config.channel_model.type         = 'PedA';
-LTE_config.use_fast_fading            = false;
+LTE_config.use_fast_fading            = true;
 LTE_config.show_network               = 3; % show plots - Everything
 LTE_config.nTX                        = 2;
-LTE_config.nRX                        = 2;  % Motivate a 2T2R channel
+LTE_config.nRX                        = 2;  % Create a 2T2R channel
 LTE_config.tx_mode                    = 4;  % 4 = CLSM
 LTE_config.seedRandStream             = true; % Allow reproducibility
-LTE_config.RandStreamSeed             = 7;  % my lucky number. 
+LTE_config.RandStreamSeed             = seed;
 LTE_config.scheduler                  = 'prop fair Sun'; 
 LTE_config.network_source             = 'generated'; % hexagonals
 LTE_config.network_geometry           = 'regular_hexagonal_grid';
-LTE_config.nr_eNodeB_rings            = 1; % 1 ring basically means a center site plus six sites surrounding it. 0 is single macro.
+LTE_config.nr_eNodeB_rings            = 1; %0; %1; % 1 ring basically means a center site plus six sites surrounding it (case 2). 0 is single macro (case 1).
 LTE_config.inter_eNodeB_distance      = 100; % 100m apart.
 %LTE_config.antenna_azimuth_offsett    = 0;  % Changes the reference of the azimuth at 0 degrees.
 LTE_config.macroscopic_pathloss_model = 'cost231'; % Good for HN and 2100 MHz simulations.
@@ -84,14 +88,14 @@ LTE_config.antenna.frequency = 2140;
 LTE_config.add_femtocells             = true;  % femto but configured as a pico with power
 LTE_config.femtocells_config.tx_power_W = 10^((37-30)/10); % 37 dBm is 5W.
 LTE_config.femtocells_config.spatial_distribution = 'homogenous density';
-LTE_config.femtocells_config.femtocells_per_km2 = 50; % 3 for case 1 and 50 for case 2
+LTE_config.femtocells_config.femtocells_per_km2 = 3; %50; % 3 for case 1 and 50 for case 2
 %LTE_config.femtocells_config.macroscopic_pathloss_model = 'cost231'; % 'dual slope'
 
 LTE_config.compact_results_file       = true;
 LTE_config.delete_ff_trace_at_end     = true;
 LTE_config.UE_cache                   = false;
 LTE_config.UE.antenna_gain            = -1; % -1 dB.
-LTE_config.UE.nRX                     = 2;  % Motivates a 2x2 MIMO
+LTE_config.UE.nRX                     = 2;
 LTE_config.UE.receiver_noise_figure   = 7; % 7dB
 %LTE_config.UE_cache_file              = 'auto';
 LTE_config.adaptive_RI                = 0;
