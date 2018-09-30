@@ -1,0 +1,1 @@
+For this code to work, please first obtain access to Vienna LTE-A Downlink System Level Simulator from https://www.nt.tuwien.ac.at/research/mobile-communications/vccs/vienna-lte-a-simulators/lte-a-downlink-system-level-simulator/
