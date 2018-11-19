@@ -4,9 +4,13 @@ clear all
 clear global;
 clear classes;
 
+
+% Must be run from terminal to inherit all env variables.
+% https://stackoverflow.com/questions/45733111/importing-tensorflow-in-matlab-via-python-interface
+
 % CoMPenabled This is where the transition graph shows (plotted at the
 % bottom of the file)
-global CoMPenabled;
+global CoMPDecisions;
 
 startTime = tic;
 
@@ -15,14 +19,15 @@ Q = 10; % UEs per eNodeB
 % This is T_CoMP
 global dComp;
 dComp = 3; % TTIs.
-Total_Time = 20*dComp; 
+Total_Time = 14; %20*dComp - 1; 
 
 global DLCoMPSINRMin;
 DLCoMPSINRMin = 3;
 
 global epsilon;
-epsilon = 0.12;
+epsilon = 0.60;  % for AUC
 
+global seed;
 seed = 7;
 rng(seed,'twister');
 
@@ -136,7 +141,7 @@ GUI_handles.positions_GUI         = LTE_GUI_show_UEs_and_cells(simulation_data,G
 
 % Generate the plot
 figure(1000)
-plot(0:Total_Time, [1;CoMPenabled], 'k')
+plot(0:Total_Time, [1;CoMPDecisions], 'k')
 xlabel('TTI')
 ylabel('CoMP Decision')
 ylim([-2,2])

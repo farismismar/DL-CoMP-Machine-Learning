@@ -3,6 +3,21 @@ function [output_results_file, pregenerated_ff, LTE_config] = LTE_sim_main(LTE_c
 %
 % (c) Josep Colom Ikuno, INTHFT, 2008
 %
+
+% Faris
+% Run it once:
+% pyversion '/Library/Frameworks/Python.framework/Versions/3.6/bin/python3'
+
+% Invoke Python code
+module = py.importlib.import_module('dnn'); % a pointer to dnn.py
+py.importlib.reload(module);
+
+py.importlib.import_module('os');
+
+global seed;
+py.dnn.initialize_wrapper(int64(seed))
+% End Faris
+
 v = ver;
 if ~isempty(strfind([v.Name],'Parallel Computing Toolbox'))
     t_ID = getCurrentTask();
@@ -56,9 +71,6 @@ end
 if LTE_config.show_network>1
     use_subplots = true; % Change to false to have all of the plots in separate figures (useful to produce results/paper figures)
     LTE_plot_loaded_network(LTE_config,sites,eNodeBs,networkPathlossMap,CQI_mapper,use_subplots,networkShadowFadingMap);
-    
-    %utils.plotUtils.plot_sector_SINR_cdfs_2(LTE_config.plots.sector_SINR_cdf,networkPathlossMap); % Faris from 1.6
-    
 end
 
 %% Add a clock to each network element
@@ -360,15 +372,14 @@ else
     end
     
     % Faris
-    global dComp;
-    global DLCoMPSINRMin;
-    global staticCoMP;
+    global dComp;       % defined in the Main_File
+    global DLCoMPSINRMin;  % defined in the Main_File
+    global staticCoMP;  % defined in the Main_File
     %global useCQI;
-    global noCoMP;
-    global CoMPenabled;
-    
-    noCoMP = false;
-    
+    global CoMPDecisions;  % will collect the decisions, to be used in the final plot.
+        
+    % This struct is used for collecting measurements, eventually the
+    % training data (X1, X2, ...).
     data = struct;
     
     data.BLER = [];
@@ -377,12 +388,11 @@ else
     data.RX_Power_TB = [];
  
     % Queues
-    CoMPenabled = [];
-    CoMPReportedSINRperTTI = [];
-    % end Faris
+    CoMPDecisions = [];
+    % End Faris
     
     % Network clock is initialised to 0
-    while networkClock.current_TTI < LTE_config.simulation_time_tti   % Faris: this is the loop where CoMP will be disabled/enabled.                        
+    while networkClock.current_TTI < LTE_config.simulation_time_tti
         % First of all, advance the network clock
         networkClock.advance_1_TTI;
         if DEBUG_LEVEL>=1 && t_ID == 1
@@ -426,7 +436,7 @@ else
          end
          
         if LTE_config.trace_simulation_mode
-            attach_UEs_to_eNodeBs_according_to_trace(LTE_config,UEs,networkPathlossMap,eNodeBs);                        
+            attach_UEs_to_eNodeBs_according_to_trace(LTE_config,UEs,networkPathlossMap,eNodeBs);
         end
         
         % Beamforming
@@ -491,15 +501,11 @@ else
                 UEs(u_).set_SINRs_according_to_schedule 
             end
         end
-                        
-        % Faris
-        % Queue for comparison        
-        CoMPvote = [];          % empty per TTI
-        reportedSINRsinTTI = [];
         
-        failStatic = false; % Flag for ML failure
-        % end Faris
         
+        
+        
+                
         % Call link performance model (evaluates whether TBs are received
         % corretly according to the information conveyed by the link quality
         % model. Additionally, send feedback (channel quality indicator +
@@ -527,167 +533,117 @@ else
             estimated_time_to_finish_m = estimated_time_to_finish/60 - estimated_time_to_finish_h*60;
             fprintf('Time to finish: %3.0f hours and %3.2f minutes\n',estimated_time_to_finish_h,estimated_time_to_finish_m);
         end
-        
+    
         % Faris
-        if (~noCoMP)     
+        % Is this dynamic CoMP?  If so, do some magic!
+        if (staticCoMP == false)
             if (mod(networkClock.current_TTI,dComp) ~= 0)  % collect learning data between dComp intervals
-                fprintf('CoMP Cluster: learning DL CoMP features...\n');
+                fprintf('CoMP Cluster: collecting DL CoMP features...\n')
+
                 % Iterate across all UEs to see if they are eligible for DL CoMP
                 % for this tti
-                
-                data.BLER = [];
-                data.RX_Power_TB = [];
-                data.TBSINR = [];
-                data.TBCQI = [];
-                
                 for jj = 1:length(UEs)
                     data.BLER = [data.BLER; simulation_traces.UE_traces(jj).BLER(1,:)];
                     data.RX_Power_TB = [data.RX_Power_TB; simulation_traces.UE_traces(jj).rx_power_tb];
                     data.TBSINR = [data.TBSINR; simulation_traces.UE_traces(jj).TB_SINR_dB(1,:)];
                     data.TBCQI= [data.TBCQI; simulation_traces.UE_traces(jj).TB_CQI(1,:)];
                 end
+
+            else
+                % Collection for dComp intervals done.  Now learn
+                fprintf('CoMP Cluster: invalidated old ML model.\n');
+                [validity, inverter] = estimateCoMPSettings(data, staticCoMP); % Faris: This vectorizes, cleans the measurement data, and trains ML.
+                fprintf('CoMP Cluster: learning from collected DL CoMP features complete.\n')
+
+                % Time to estimate new parameter based on the new measurements.
+                newX = [];
+                for jj = 1:length(UEs)   
+                    newRsrp = 10*log10(sum(UEs(jj).rx_power_tb_in_current_tti)); % sum energy from all antennas
+                   % if (useCQI)
+                       % newCqi = sinrToCqi(UEs(jj).wideband_SINR);
+                       % newX = [newCqi newRsrp];                    
+                       % fprintf('CoMP Cluster: New UE reporting CQI of %d and RSRP of %0.1f dBm.\n', newX(1), newX(2));
+                    %else                    
+                    newX = [newX; UEs(jj).wideband_SINR newRsrp]; %#ok
+                        %fprintf('CoMP Cluster: UE %d reporting an equivalent SINR of %0.1f dB and RSRP of %0.1f dBm.\n', jj, newX(1), newX(2));
+                    %end
+                end
+
                 
-                % Estimate the CoMP settings
-                [validity, model] = estimateCoMPSettings(data, staticCoMP);
+                % TODO: clean up this newX before moving forward.
                 
-                if (~staticCoMP)                
-                    fprintf('CoMP Cluster: learning DL CoMP features complete.\n');
+                % No -Inf due to dB/dBm
+                newX = newX(newX(:,1)>-Inf,:);
+                newX = newX(newX(:,2)>-Inf,:);
+                
+                % No NaN
+                newX = newX(~isnan(newX(:,1)),:);
+                newX = newX(~isnan(newX(:,2)),:);
+                
+                if (validity == true)
+                    % ML model is valid, use newX to find whether trigger
+                    % allowed.
+
+                  %  if (~isnan(sum(newX(:))) && ~isinf(newX(1)) && ~isinf(newX(2)))
+                  
+                    save('newX.mat','newX');
+                    label = py.dnn.predict_wrapper('newX.mat');  % RSRP then SINR in this order.
+                    label = double(py.array.array('i',py.numpy.nditer(label))); % convert from Python to MATLAB
+                    
+                    % If AUC generates a value lower than 50%, invert label
+                    if (inverter == true)
+                        label = 1 - label;
+                    end
+                    
+                    % Finally, purge the data for a new learning
+                    data.BLER = [];
+                    data.RX_Power_TB = [];
+                    data.TBSINR = [];
+                    data.TBCQI = [];
+                    fprintf('CoMP Cluster: all old features are purged.\n');
+                end
+                
+                %mean_vote = mean(label);
+                median_vote = median(label);
+
+                if (median_vote == 1)
+                    % Trigger CoMP for the next TTI
+                    LTE_config.CoMP_configuration = 'global'; % enable for the next TTI
+                    CoMPDecisions = [CoMPDecisions;1];
+                    fprintf('CoMP Cluster: DL CoMP decision is ENABLE.\n');                    
+                else
+                    % Switch off CoMP for the next TTI
+                    LTE_config.CoMP_configuration = 'trival'; % disable for the next TTI
+                    CoMPDecisions = [CoMPDecisions;0];
+                    fprintf('CoMP Cluster: DL CoMP decision is DISABLE.\n');
                 end
             end
-            % If current TTI > dComp, then collection for CoMP is over
-            % Time to estimate new parameter and build the model  
-            for jj = 1:length(UEs)   
-                newRsrp = 10*log10(sum(UEs(jj).rx_power_tb_in_current_tti)); % sum energy from all antennas
-               % if (useCQI)
-                   % newCqi = sinrToCqi(UEs(jj).wideband_SINR);
-                   % newX = [newCqi newRsrp];                    
-                   % fprintf('CoMP Cluster: New UE reporting CQI of %d and RSRP of %0.1f dBm.\n', newX(1), newX(2));
-                %else                    
-                    newX = [UEs(jj).wideband_SINR newRsrp];
-                    %fprintf('CoMP Cluster: UE %d reporting an equivalent SINR of %0.1f dB and RSRP of %0.1f dBm.\n', jj, newX(1), newX(2));
-                %end
-               
-                %if (useCQI)
-               %     reportedSINRsinTTI = [reportedSINRsinTTI; cqiToSinr(newX(1))];
-               % else
-                    reportedSINRsinTTI = [reportedSINRsinTTI; newX(1)];
-                %end
-                
-                % Static algorithm
-                if (staticCoMP)
-                    CoMPvote = [CoMPvote; (newX(1) >= DLCoMPSINRMin)];                    
-                else
-                    % Dynamic algorithm
-                    if (validity)
-                        % Model is valid, can use newX to find whether trigger
-                        % allowed.
-                        if (~staticCoMP)
-                            [label,~] = predict(model, newX);
-                            CoMPvote = [CoMPvote;label];
-                        end
-
-                    else
-                        % Model is invalid, revert to static CoMP settings
-                        failStatic = true;
-                    end
-                end
-            end % For
-            
-            % Now go through all the UEs in this TTI and enable CoMP based on
-            % their RSRP and CQI...
-          %  if (staticCoMP)
-            %    CoMPTriggerSINRperTTI = [CoMPTriggerSINRperTTI; DLCoMPSINRMin];
-          %  else
-            CoMPReportedSINRperTTI = [CoMPReportedSINRperTTI; median(reportedSINRsinTTI)]; %mean gives issues iwth inf... using median for robustness
-         %   end
-            
-         % if static CoMP is on, any single UE says I need CoMP gets it.
-         % However, if dynamic DL CoMP is on, at least 90% of the UEs must
-         % say they want it.
-         
-         mean_vote = mean(CoMPvote(~isnan(CoMPvote)));
-         if(isnan(mean_vote))
-             failStatic = true;
-         end
-         fprintf('CoMP Cluster: The voting percentage is: %4f.\n', mean_vote)
-            %if (staticCoMP && mean(CoMPvote) >= 0.2) || (~staticCoMP && mean(CoMPvote) >= 0.2)
-            if ((mean_vote > 0.2) || (failStatic && (newX(1) >= DLCoMPSINRMin))) % Faris: tried 0.9 and now 0.2 to test.
-                % Trigger CoMP for the next TTI
+        else  % static CoMP here
+            if (mean(newX(:,1)) >= DLCoMPSINRMin)
                 LTE_config.CoMP_configuration = 'global'; % enable for the next TTI
-                CoMPenabled = [CoMPenabled;1];
-                fprintf('CoMP Cluster: DL CoMP decision is ENABLE.\n');                    
+                CoMPDecisions = [CoMPDecisions;1];
+                fprintf('CoMP Cluster: DL CoMP decision is ENABLE.\n');  
             else
-                % Switch off CoMP for the next TTI
                 LTE_config.CoMP_configuration = 'trival'; % disable for the next TTI
-                CoMPenabled = [CoMPenabled;0];
+                CoMPDecisions = [CoMPDecisions;0];
                 fprintf('CoMP Cluster: DL CoMP decision is DISABLE.\n');
             end
-            failStatic = false;  
-        else
-            LTE_config.CoMP_configuration = 'trival';
-            fprintf('CoMP Cluster: DL CoMP permanently DISABLED.\n');
-        end  
-        
-        CoMPvote = [];
-    end % while
-
-    if (~noCoMP)
-%         figure
-%         plot(1:LTE_config.simulation_time_tti,CoMPReportedSINRperTTI,'k-');
-%         xlabel('TTI')
-%         ylabel('DL CoMP SINR target [dB]');
-%         if (staticCoMP)
-%             hold on
-%             plot(DLCoMPSINRMin*ones(LTE_config.simulation_time_tti,1),'r');
-%             legend('Reported SINR','DL CoMP minimum DL SINR');
-%         end
-        figure
-        plot(1:LTE_config.simulation_time_tti,CoMPenabled,'-');
-        ylabel('CoMP Decision');
-        xlabel('TTI');
-        
-        figure
-        TBSINR = data.TBSINR(:);
-        TBSINR = data.TBSINR(TBSINR ~= 0); % remove the -inf
-        cdfplot(TBSINR)
-        xlabel('SINR [dB]');
-        
-%         figure
-%         histogram(data.TBCQI)
-%         xlabel('CQI [dB]');
-%         ylabel('Count');
-%         xlim([0 15])
-%         
-%         figure
-%         histogram(10*log10(data.RX_Power_TB))
-%         xlabel('RSRP [dBm]');
-%         ylabel('Count')
-        
-%         data.BLER = data.BLER(:);
-%         data.BLER = data.BLER(100*data.BLER > 0);
-%         figure
-%         histogram(100*data.BLER)
-%         xlabel('BLER [%]');
-%         ylabel('Count')    
-%         
-%         figure
-%         cdfplot(100*data.BLER(:))
-%         xlabel('BLER [%]');        
-    end
-    % end Faris
+        end
+    end % while TTI < sim time.
+    % End Faris
 
     finish_time_s_full = toc(ticID_start_sim_begin);
     finish_time_m = floor(finish_time_s_full/60);
     finish_time_s = finish_time_s_full-finish_time_m*60;
     if DEBUG_LEVEL>=1
-        % Faris
+         % Faris
          fprintf('Average SINR is %1.2f\n', mean(TBSINR(:)));
          data.TBCQI = data.TBCQI(~isnan(data.TBCQI(:)));
          fprintf('Average CQI is %1.0f\n', round(mean(data.TBCQI(:))));  
          data.RX_Power_TB = data.RX_Power_TB(~isinf(data.RX_Power_TB(:))); % get rid of infinity
          fprintf('Average RSRP is %1.2f\n', 10*log10(mean(data.RX_Power_TB(:))));
          fprintf('Average BLER is %1.2f%%\n', mean(data.BLER(:))*100);
-        % end Faris
+        % End Faris
         fprintf('Simulation finished\n');
         fprintf(' Total elapsed time: %.0fm, %.0fs\n',finish_time_m,finish_time_s);
     end
@@ -701,10 +657,6 @@ else
     end
     
     % Some post-processing
-    if (~noCoMP && ~staticCoMP)
-        plotSVM(data);%,useCQI);  % show SVM only if dynamic.
-    end
-    
     simulation_traces.calculate_UE_aggregates;
     
     if strcmp(LTE_config.scheduler,'FFR')
@@ -772,7 +724,6 @@ else
             the_UE_traces(u_).average_energy_per_bit                 = all_UE_traces(u_).average_energy_per_bit;
             the_UE_traces(u_).average_RBs_per_TTI                    = all_UE_traces(u_).average_RBs_per_TTI;
             the_UE_traces(u_).mean_wideband_SINR                     = mean(all_UE_traces(u_).wideband_SINR);           
-            the_UE_traces(u_).BLER = all_UE_traces(u_).BLER; % Faris   
         end
         
         UEs_bak             = UEs;
