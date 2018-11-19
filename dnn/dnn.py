@@ -4,22 +4,22 @@ Created on Thu April 28 20:46:45 2017
 
 @author: farismismar
 """
-# Use these lines to force GPU
-import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-# The GPU id to use, usually either "0" or "1"
-os.environ["CUDA_VISIBLE_DEVICES"]="0" 
-###################################################
+# # Use these lines to force GPU
+# import os
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+# # The GPU id to use, usually either "0" or "1"
+# os.environ["CUDA_VISIBLE_DEVICES"]="0" 
+# ###################################################
 
-# Do other imports now...
-import tensorflow as tf
-config = tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction = 0.3
+# # Do other imports now...
+# import tensorflow as tf
+# config = tf.ConfigProto()
+# config.gpu_options.per_process_gpu_memory_fraction = 0.3
 
-from keras.backend.tensorflow_backend import set_session
-set_session(tf.Session(config=config))
+# from keras.backend.tensorflow_backend import set_session
+# set_session(tf.Session(config=config))
 
-import keras
+# import keras
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -38,8 +38,6 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import roc_curve, auc
 
 from scipy.io import loadmat
-
-#os.chdir('/Users/farismismar/Desktop/E_Projects/UT Austin Ph.D. EE/Papers/Journals/1- Deep Learning in Downlink Coordinated Multipoint in New Radio Heterogeneous Networks/Simulation/LTE-A-DL-System-Level-Simulator-Rel-v1-9-Q2-2016')
 
 # Set the random seed
 seed = 3
@@ -61,10 +59,21 @@ def initialize_wrapper(random_state):
     seed = random_state
     np.random.seed(random_state)
     
-def predict_wrapper(RSRP, SINR):
-    X_test = pd.DataFrame({'RSRP': RSRP,
-                           'TBSINR': SINR}, index=[0])
+def predict_wrapper(filename): # filename = newX.mat
+    data = loadmat(filename) # this is a dict.
 
+#    keys = list(data.keys())[3:] # skip the first three columns
+    values = list(data.values())[3:]
+    
+    a = []
+    for sublist in values:
+        for items in sublist:
+            a.append(items)
+            
+    X_test = pd.DataFrame(a)
+    del a
+    X_test.columns = ['SINR', 'RSRP']
+    
     global model
     global y_pred
     global ss
@@ -145,7 +154,7 @@ def train_wrapper(filename): # filename='measurements.mat'
 
     hyperparameters = dict(width=width_dims, depth=n_hiddens, act=activators)
     
-    grid = GridSearchCV(estimator=model, param_grid=hyperparameters, n_jobs=1, cv=5)
+    grid = GridSearchCV(estimator=model, param_grid=hyperparameters, n_jobs=1, cv=3)
     grid_result = grid.fit(X_train_sc, y_train)
     
     # This is the best model
@@ -190,7 +199,7 @@ def create_mlp(width, depth, act):
     mlp = Sequential()
     mlp.add(Dense(units=width, input_dim=nX, activation=act))
     for k in np.arange(depth): # the depth of the neural network
-        mlp.add(Dense(width, use_bias=True))
+        mlp.add(Dense(width, use_bias=False))
 
     mlp.add(Dense(units=nY, input_dim=width, activation=act))
 
