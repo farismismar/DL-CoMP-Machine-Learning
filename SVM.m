@@ -35,9 +35,9 @@ SVMModel = fitcsvm(X_training, Y_training, ...
     'HyperparameterOptimizationOptions',struct('MaxObjectiveEvaluations', 5, ...
         'ShowPlots', false)); 
 
-% Test error and kFoldPrediction
-CVSVMModel = predict(SVMModel, X_test);
-error = 1 - mean(kfoldPredict(CVSVMModel) == Y_test);
+% Test error
+Y_hat = predict(SVMModel, X_test);
+error = 1 - mean(Y_hat == Y_test);
 
 fprintf('CoMP Cluster: Classification error is %0.1f%%.\n', error * 100);
 
