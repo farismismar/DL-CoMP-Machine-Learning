@@ -19,7 +19,7 @@ Q = 10; % UEs per eNodeB
 % This is T_CoMP
 global dComp;
 dComp = 3; % TTIs.
-Total_Time = 4; %20*dComp - 1; 
+Total_Time = 20*dComp - 1; 
 
 global DLCoMPSINRMin;
 DLCoMPSINRMin = 3;
@@ -39,7 +39,7 @@ model_choice = 'svm'; % svm or dnn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin
-staticCoMP = false;
+staticCoMP = true;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
