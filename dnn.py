@@ -154,7 +154,7 @@ def train_wrapper(filename): # filename='measurements.mat'
 
     hyperparameters = dict(width=width_dims, depth=n_hiddens, act=activators)
     
-    grid = GridSearchCV(estimator=model, param_grid=hyperparameters, n_jobs=1, cv=3)
+    grid = GridSearchCV(estimator=model, param_grid=hyperparameters, n_jobs=-1, cv=5)
     grid_result = grid.fit(X_train_sc, y_train)
     
     # This is the best model

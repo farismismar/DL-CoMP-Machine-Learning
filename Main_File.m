@@ -34,7 +34,7 @@ rng(seed,'twister');
 global staticCoMP;
 
 global model_choice;
-model_choice = 'svm'; % svm or dnn
+model_choice = 'dnn'; % svm or dnn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin
@@ -155,6 +155,7 @@ plot(0:Total_Time, [1;CoMPDecisions], 'k')
 xlabel('TTI')
 ylabel('CoMP Decision')
 ylim([-2,2])
+matlab2tikz('comp_decisions.tikz');
 
 endTime = toc(startTime);
 fprintf('Simulation: total time = %1.5f sec.\n', endTime);

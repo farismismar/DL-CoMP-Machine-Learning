@@ -695,7 +695,8 @@ else
         TBSINR = data.TBSINR(TBSINR ~= 0); % remove the -inf
         cdfplot(TBSINR)
         xlabel('SINR [dB]');
-
+        matlab2tikz('sinr_cdf.tikz');
+        
         % Faris
         fprintf('Average SINR is %1.2f\n', mean(TBSINR(:)));
         data.TBCQI = data.TBCQI(~isnan(data.TBCQI(:)));
