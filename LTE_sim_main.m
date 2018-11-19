@@ -671,7 +671,9 @@ else
             newX = newX(~isnan(newX(:,1)),:);
             newX = newX(~isnan(newX(:,2)),:);
 
-            if (mean(newX(:,1)) >= DLCoMPSINRMin)
+            % Trigger DL CoMP if the cell center (95th pctle) achieves min cutoff...
+            % prctile(newX(:,1),[5,50,95])
+            if (median(newX(:,1)) >= DLCoMPSINRMin)
                 LTE_config.CoMP_configuration = 'global'; % enable for the next TTI
                 CoMPDecisions = [CoMPDecisions;1];
                 fprintf('CoMP Cluster: DL CoMP decision is ENABLE.\n');  

@@ -22,10 +22,9 @@ dComp = 3; % TTIs.
 Total_Time = 20*dComp - 1; 
 
 global DLCoMPSINRMin;
-DLCoMPSINRMin = 3;
+DLCoMPSINRMin = -1.5;
 
 global epsilon;
-epsilon = 0.60;  % for AUC
 
 global seed;
 seed = 7;
@@ -39,9 +38,17 @@ model_choice = 'svm'; % svm or dnn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin
-staticCoMP = true;
+staticCoMP = false;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+if (model_choice == 'svm')
+    epsilon = 0.12;  % for Error
+end
+
+if (model_choice == 'dnn')
+    epsilon = 0.6;  % for AUC
+end
 
 simulation_type = 'tri_sector_plus_femtocells';
 
