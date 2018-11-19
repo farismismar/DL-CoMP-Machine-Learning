@@ -15,7 +15,10 @@ py.importlib.reload(module);
 py.importlib.import_module('os');
 
 global seed;
-py.dnn.initialize_wrapper(int64(seed))
+global model_choice; % are we using dnn or svm?
+py.dnn.initialize_wrapper(int64(seed));
+fall_back = false; % is the ML model unable to predict?  Fall back to static CoMP.
+validity = false;  % is the ML model valid?
 % End Faris
 
 v = ver;
@@ -377,16 +380,22 @@ else
     global staticCoMP;  % defined in the Main_File
     %global useCQI;
     global CoMPDecisions;  % will collect the decisions, to be used in the final plot.
-        
-    % This struct is used for collecting measurements, eventually the
-    % training data (X1, X2, ...).
-    data = struct;
     
+    data = struct; % This struct is for the whole simulation
     data.BLER = [];
     data.TBSINR = [];
     data.TBCQI = [];
     data.RX_Power_TB = [];
- 
+    
+    % This struct is used for collecting measurements, eventually the
+    % training data (X1, X2, ...).
+    
+    training_data = struct; % this is for training data
+    training_data.BLER = [];
+    training_data.TBSINR = [];
+    training_data.TBCQI = [];
+    training_data.RX_Power_TB = [];
+    
     % Queues
     CoMPDecisions = [];
     % End Faris
@@ -547,12 +556,16 @@ else
                     data.RX_Power_TB = [data.RX_Power_TB; simulation_traces.UE_traces(jj).rx_power_tb];
                     data.TBSINR = [data.TBSINR; simulation_traces.UE_traces(jj).TB_SINR_dB(1,:)];
                     data.TBCQI= [data.TBCQI; simulation_traces.UE_traces(jj).TB_CQI(1,:)];
+                    
+                    training_data.BLER = [training_data.BLER; simulation_traces.UE_traces(jj).BLER(1,:)];
+                    training_data.RX_Power_TB = [training_data.RX_Power_TB; simulation_traces.UE_traces(jj).rx_power_tb];
+                    training_data.TBSINR = [training_data.TBSINR; simulation_traces.UE_traces(jj).TB_SINR_dB(1,:)];
+                    training_data.TBCQI= [training_data.TBCQI; simulation_traces.UE_traces(jj).TB_CQI(1,:)];
                 end
-
             else
                 % Collection for dComp intervals done.  Now learn
                 fprintf('CoMP Cluster: invalidated old ML model.\n');
-                [validity, inverter] = estimateCoMPSettings(data, staticCoMP); % Faris: This vectorizes, cleans the measurement data, and trains ML.
+                [validity, inverter, model] = estimateCoMPSettings(training_data, staticCoMP); % Faris: This vectorizes, cleans the measurement data, and trains ML.
                 fprintf('CoMP Cluster: learning from collected DL CoMP features complete.\n')
 
                 % Time to estimate new parameter based on the new measurements.
@@ -568,44 +581,53 @@ else
                         %fprintf('CoMP Cluster: UE %d reporting an equivalent SINR of %0.1f dB and RSRP of %0.1f dBm.\n', jj, newX(1), newX(2));
                     %end
                 end
+                    % No -Inf due to dB/dBm
+                    newX = newX(newX(:,1)>-Inf,:);
+                    newX = newX(newX(:,2)>-Inf,:);
 
-                
-                % TODO: clean up this newX before moving forward.
-                
-                % No -Inf due to dB/dBm
-                newX = newX(newX(:,1)>-Inf,:);
-                newX = newX(newX(:,2)>-Inf,:);
-                
-                % No NaN
-                newX = newX(~isnan(newX(:,1)),:);
-                newX = newX(~isnan(newX(:,2)),:);
-                
-                if (validity == true)
-                    % ML model is valid, use newX to find whether trigger
-                    % allowed.
+                    % No NaN
+                    newX = newX(~isnan(newX(:,1)),:);
+                    newX = newX(~isnan(newX(:,2)),:);
+            end
 
-                  %  if (~isnan(sum(newX(:))) && ~isinf(newX(1)) && ~isinf(newX(2)))
-                  
+            % Use the model for dComp - 1 more periods
+            if (validity == true)
+                % ML model is valid, use newX to find whether trigger
+                % allowed.
+
+              %  if (~isnan(sum(newX(:))) && ~isinf(newX(1)) && ~isinf(newX(2)))
+
+                if (model_choice == 'dnn')
                     save('newX.mat','newX');
                     label = py.dnn.predict_wrapper('newX.mat');  % RSRP then SINR in this order.
                     label = double(py.array.array('i',py.numpy.nditer(label))); % convert from Python to MATLAB
-                    
+
                     % If AUC generates a value lower than 50%, invert label
                     if (inverter == true)
                         label = 1 - label;
                     end
-                    
-                    % Finally, purge the data for a new learning
-                    data.BLER = [];
-                    data.RX_Power_TB = [];
-                    data.TBSINR = [];
-                    data.TBCQI = [];
-                    fprintf('CoMP Cluster: all old features are purged.\n');
                 end
                 
+                if (model_choice == 'svm')
+                    label = predict(model, newX);
+                end
+
+                % Finally, purge the data for a new learning
+                training_data.BLER = [];
+                training_data.RX_Power_TB = [];
+                training_data.TBSINR = [];
+                training_data.TBCQI = [];
+                fprintf('CoMP Cluster: all old features are purged.\n');
+            else
+                % model is invalid.  Fall back to static
+                fall_back = true;
+            end
+            
+            if (fall_back == false)
                 %mean_vote = mean(label);
                 median_vote = median(label);
 
+                % Now based on the vote, keep things as is
                 if (median_vote == 1)
                     % Trigger CoMP for the next TTI
                     LTE_config.CoMP_configuration = 'global'; % enable for the next TTI
@@ -618,7 +640,37 @@ else
                     fprintf('CoMP Cluster: DL CoMP decision is DISABLE.\n');
                 end
             end
-        else  % static CoMP here
+        end
+        
+        % static CoMP here
+        if (staticCoMP == true || fall_back == true)
+            % Time to estimate new parameter based on the new measurements.
+            newX = [];
+            for jj = 1:length(UEs)   
+                newRsrp = 10*log10(sum(UEs(jj).rx_power_tb_in_current_tti)); % sum energy from all antennas
+               % if (useCQI)
+                   % newCqi = sinrToCqi(UEs(jj).wideband_SINR);
+                   % newX = [newCqi newRsrp];                    
+                   % fprintf('CoMP Cluster: New UE reporting CQI of %d and RSRP of %0.1f dBm.\n', newX(1), newX(2));
+                %else                    
+                newX = [newX; UEs(jj).wideband_SINR newRsrp]; %#ok
+                    %fprintf('CoMP Cluster: UE %d reporting an equivalent SINR of %0.1f dB and RSRP of %0.1f dBm.\n', jj, newX(1), newX(2));
+                %end
+                data.BLER = [data.BLER; simulation_traces.UE_traces(jj).BLER(1,:)];
+                data.RX_Power_TB = [data.RX_Power_TB; simulation_traces.UE_traces(jj).rx_power_tb];
+                data.TBSINR = [data.TBSINR; simulation_traces.UE_traces(jj).TB_SINR_dB(1,:)];
+                data.TBCQI= [data.TBCQI; simulation_traces.UE_traces(jj).TB_CQI(1,:)];
+
+            end
+
+            % No -Inf due to dB/dBm
+            newX = newX(newX(:,1)>-Inf,:);
+            newX = newX(newX(:,2)>-Inf,:);
+
+            % No NaN
+            newX = newX(~isnan(newX(:,1)),:);
+            newX = newX(~isnan(newX(:,2)),:);
+
             if (mean(newX(:,1)) >= DLCoMPSINRMin)
                 LTE_config.CoMP_configuration = 'global'; % enable for the next TTI
                 CoMPDecisions = [CoMPDecisions;1];
@@ -636,14 +688,21 @@ else
     finish_time_m = floor(finish_time_s_full/60);
     finish_time_s = finish_time_s_full-finish_time_m*60;
     if DEBUG_LEVEL>=1
-         % Faris
-         fprintf('Average SINR is %1.2f\n', mean(TBSINR(:)));
-         data.TBCQI = data.TBCQI(~isnan(data.TBCQI(:)));
-         fprintf('Average CQI is %1.0f\n', round(mean(data.TBCQI(:))));  
-         data.RX_Power_TB = data.RX_Power_TB(~isinf(data.RX_Power_TB(:))); % get rid of infinity
-         fprintf('Average RSRP is %1.2f\n', 10*log10(mean(data.RX_Power_TB(:))));
-         fprintf('Average BLER is %1.2f%%\n', mean(data.BLER(:))*100);
+        figure
+        TBSINR = data.TBSINR(:);
+        TBSINR = data.TBSINR(TBSINR ~= 0); % remove the -inf
+        cdfplot(TBSINR)
+        xlabel('SINR [dB]');
+
+        % Faris
+        fprintf('Average SINR is %1.2f\n', mean(TBSINR(:)));
+        data.TBCQI = data.TBCQI(~isnan(data.TBCQI(:)));
+        fprintf('Average CQI is %1.0f\n', round(mean(data.TBCQI(:))));  
+        data.RX_Power_TB = data.RX_Power_TB(~isinf(data.RX_Power_TB(:))); % get rid of infinity
+        fprintf('Average RSRP is %1.2f\n', 10*log10(mean(data.RX_Power_TB(:))));
+        fprintf('Average BLER is %1.2f%%\n', mean(data.BLER(:))*100);
         % End Faris
+        
         fprintf('Simulation finished\n');
         fprintf(' Total elapsed time: %.0fm, %.0fs\n',finish_time_m,finish_time_s);
     end
