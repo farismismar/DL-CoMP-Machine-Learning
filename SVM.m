@@ -28,21 +28,27 @@ Y_training = Y;
 %title('Classification Balance - Prior')
 
 %  'KernelFunction', 'rbf', ... %rbf linear gaussian polynomial
-SVMModel = fitcsvm(X_training, Y_training, ...
-    'ClassNames',[0 1], ...
-    'Standardize', true, ...
-    'OptimizeHyperparameters','all', ...
-    'HyperparameterOptimizationOptions',struct('MaxObjectiveEvaluations', 5, ...
-        'ShowPlots', false)); 
+try
+    SVMModel = fitcsvm(X_training, Y_training, ...
+        'ClassNames',[0 1], ...
+        'Standardize', true, ...
+        'OptimizeHyperparameters','all', ...
+        'HyperparameterOptimizationOptions',struct('MaxObjectiveEvaluations', 5, ...
+            'ShowPlots', false)); 
 
-% Test error
-Y_hat = predict(SVMModel, X_test);
-error = 1 - mean(Y_hat == Y_test);
+    % Test error
+    Y_hat = predict(SVMModel, X_test);
+    error = 1 - mean(Y_hat == Y_test);
 
-fprintf('CoMP Cluster: Classification error is %0.1f%%.\n', error * 100);
+    fprintf('CoMP Cluster: Classification error is %0.1f%%.\n', error * 100);
 
-if error > epsilon
+    if error > epsilon
+        SVMModel = [];
+        fprintf('CoMP Cluster: SVM error is too high.  Using operator setting.\n');
+        return
+    end
+catch ME
+    error = 1;
+    fprintf('CoMP Cluster: Classification cannot be obtained.  Skipped.\n');
     SVMModel = [];
-    fprintf('CoMP Cluster: SVM error is too high.  Using operator setting.\n');
-    return
 end
