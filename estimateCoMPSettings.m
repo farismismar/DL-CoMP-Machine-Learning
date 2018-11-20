@@ -26,7 +26,8 @@ function [validity, inverted, model] = estimateCoMPSettings(simulation_data, isS
          TBSINR = TBSINR(:);
          
          % Find rows with infinity
-        inclusion = find(RSRP > -Inf);  % Get rid of -inf dBm
+        inclusion = union(find(RSRP > -Inf), ...
+            find(TBSINR ~= 0));  % Get rid of -inf dBm and 0 SINR which is invalid.
 
         RSRP = RSRP(inclusion);
         BLER = BLER(inclusion);
