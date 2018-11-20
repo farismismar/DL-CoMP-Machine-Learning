@@ -19,10 +19,10 @@ Q = 10; % UEs per eNodeB
 % This is T_CoMP
 global dComp;
 dComp = 3; % TTIs.
-Total_Time = 20*dComp - 1; 
+Total_Time = 20*dComp - 1;  % 20
 
 global DLCoMPSINRMin;
-DLCoMPSINRMin = -2;
+DLCoMPSINRMin = 3;
 
 global epsilon;
 
@@ -34,7 +34,7 @@ rng(seed,'twister');
 global staticCoMP;
 
 global model_choice;
-model_choice = 'dnn'; % svm or dnn
+model_choice = 'svm'; % svm or dnn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin
@@ -152,6 +152,7 @@ GUI_handles.positions_GUI         = LTE_GUI_show_UEs_and_cells(simulation_data,G
 % Generate the plot
 figure(1000)
 plot(0:Total_Time, [1;CoMPDecisions], 'k')
+grid on;
 xlabel('TTI')
 ylabel('CoMP Decision')
 ylim([-2,2])

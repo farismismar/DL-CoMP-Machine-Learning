@@ -675,9 +675,9 @@ else
             newX = newX(~isnan(newX(:,1)),:);
             newX = newX(~isnan(newX(:,2)),:);
 
-            % Trigger DL CoMP if the mean achieves min cutoff...
+            % Trigger DL CoMP if the trigger achieves min cutoff...
             % prctile(newX(:,1),[5,50,95])
-            trigger = mean(newX(:,1));
+            trigger = prctile(newX(:,1), 90)
             if (trigger >= DLCoMPSINRMin)
                 LTE_config.CoMP_configuration = 'global'; % enable for the next TTI
                 CoMPDecisions = [CoMPDecisions;1];
@@ -695,14 +695,14 @@ else
     finish_time_m = floor(finish_time_s_full/60);
     finish_time_s = finish_time_s_full-finish_time_m*60;
     if DEBUG_LEVEL>=1
-        figure
+        % Faris
+        %figure
         TBSINR = data.TBSINR(:);
         TBSINR = data.TBSINR(TBSINR ~= 0); % remove the -inf
-        cdfplot(TBSINR)
-        xlabel('SINR [dB]');
-        matlab2tikz('sinr_cdf.tikz');
+        %cdfplot(TBSINR)
+        %xlabel('SINR [dB]');
+        %matlab2tikz('sinr_cdf.tikz');
         
-        % Faris
         fprintf('Average SINR is %1.2f\n', mean(TBSINR(:)));
         data.TBCQI = data.TBCQI(~isnan(data.TBCQI(:)));
         fprintf('Average CQI is %1.0f\n', round(mean(data.TBCQI(:))));  
