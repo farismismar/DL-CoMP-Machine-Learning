@@ -54,6 +54,8 @@ episode_count = 0
 model = None # the forward definition.
 ss = None # The scaler forward def
 
+# import os
+
 def initialize_wrapper(random_state):
     global seed
     global model
@@ -141,12 +143,12 @@ def train_wrapper(filename): # filename='measurements.mat'
     X_train_sc = ss.fit_transform(X_train)
     X_test_sc = ss.transform(X_test)
     
-    model = KerasClassifier(build_fn=create_mlp, verbose=0, epochs=5, batch_size=32)
+    model = KerasClassifier(build_fn=create_mlp, verbose=1, epochs=5, batch_size=64)
 
     # The hyperparameters
-    width_dims=[3,5]
-    n_hiddens = [1,3] # the depth of hidden layers
-    activators = ['sigmoid', 'relu'] # 'softmax']
+    width_dims=[1,3]
+    n_hiddens = [0,1,3] # the depth of hidden layers
+    activators = ['sigmoid', 'relu']
 
     hyperparameters = dict(width=width_dims, depth=n_hiddens, act=activators)
     
@@ -158,7 +160,7 @@ def train_wrapper(filename): # filename='measurements.mat'
     print(best_model_mlp)
  
     mlp = grid_result.best_estimator_
-    mlp.fit(X_train_sc, y_train)
+#    mlp.fit(X_train_sc, y_train)
     model = mlp # the final model
     
 #    y_pred_dnn = mlp.predict(X_test_sc)
