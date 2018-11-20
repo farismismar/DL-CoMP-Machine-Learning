@@ -545,6 +545,7 @@ else
     
         % Faris
         % Is this dynamic CoMP?  If so, do some magic!
+        close all % close all pesky figures
         if (staticCoMP == false)
             if (mod(networkClock.current_TTI,dComp) ~= 0)  % collect learning data between dComp intervals
                 fprintf('CoMP Cluster: collecting DL CoMP features...\n')
@@ -596,12 +597,12 @@ else
                 % allowed.
 
               %  if (~isnan(sum(newX(:))) && ~isinf(newX(1)) && ~isinf(newX(2)))
-
+                fall_back = false;
                 if (model_choice == 'dnn')
                     save('newX.mat','newX');
                     label = py.dnn.predict_wrapper('newX.mat');  % RSRP then SINR in this order.
                     label = double(py.array.array('i',py.numpy.nditer(label))); % convert from Python to MATLAB
-
+                    
                     % If AUC generates a value lower than 50%, invert label
                     if (inverter == true)
                         label = 1 - label;
@@ -617,12 +618,15 @@ else
                 training_data.RX_Power_TB = [];
                 training_data.TBSINR = [];
                 training_data.TBCQI = [];
-                fprintf('CoMP Cluster: all old features are purged.\n');
             else
                 % model is invalid.  Fall back to static
                 fall_back = true;
+                if (model_choice == 'dnn')
+                    py.importlib.reload(module);  % purge the model.
+                end
             end
             
+            % Model is valid
             if (fall_back == false)
                 %mean_vote = mean(label);
                 median_vote = median(label);
@@ -671,9 +675,10 @@ else
             newX = newX(~isnan(newX(:,1)),:);
             newX = newX(~isnan(newX(:,2)),:);
 
-            % Trigger DL CoMP if the cell center (95th pctle) achieves min cutoff...
+            % Trigger DL CoMP if the mean achieves min cutoff...
             % prctile(newX(:,1),[5,50,95])
-            if (median(newX(:,1)) >= DLCoMPSINRMin)
+            trigger = mean(newX(:,1));
+            if (trigger >= DLCoMPSINRMin)
                 LTE_config.CoMP_configuration = 'global'; % enable for the next TTI
                 CoMPDecisions = [CoMPDecisions;1];
                 fprintf('CoMP Cluster: DL CoMP decision is ENABLE.\n');  

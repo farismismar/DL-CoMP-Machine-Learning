@@ -22,7 +22,7 @@ dComp = 3; % TTIs.
 Total_Time = 20*dComp - 1; 
 
 global DLCoMPSINRMin;
-DLCoMPSINRMin = -1.5;
+DLCoMPSINRMin = -2;
 
 global epsilon;
 

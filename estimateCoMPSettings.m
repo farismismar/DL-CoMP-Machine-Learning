@@ -1,5 +1,5 @@
 function [validity, inverted, model] = estimateCoMPSettings(simulation_data, isStatic)
-    validity = 0;
+    validity = false;
     inverted = false;
     model = [];
     
@@ -37,9 +37,9 @@ function [validity, inverted, model] = estimateCoMPSettings(simulation_data, isS
             [err,model] = SVM(TBSINR,RSRP,BLER);
             
             if (err > epsilon)
-                validity = 0;
+                validity = false;
             else
-                validity = 1;
+                validity = true;
             end
                 
         end
@@ -58,17 +58,24 @@ function [validity, inverted, model] = estimateCoMPSettings(simulation_data, isS
             auc=ret_vals(3);   % The area under ROC curve based on a split test data from the data collected.
 
             auc_roc = auc{1};
-            % Inverted decisions.
-            if (auc_roc < 0.5) 
-                auc_roc = 1 - auc_roc;
-                inverted = true;
-                fprintf('Warning: AUC < 0.5 is complemented and the decision is inverted.\n');
-            end
+            %fprintf('Test AUC ROC =  %.3f.\n', double(auc_roc));
+            
+            if (auc_roc > 0)
+                % Inverted decisions.
+                if (auc_roc < 0.5) 
+                    auc_roc = 1 - auc_roc;
+                    inverted = true;
+                    fprintf('Warning: Test AUC ROC < 0.5 is complemented and the decision is inverted.\n');
+                end
 
-            if (auc_roc < epsilon) 
-                validity = 0;
+                if (auc_roc < epsilon) 
+                    validity = false;
+                else
+                    validity = true;
+                end
             else
-                validity = 1;
+                fprintf('Warning: Model is not valid due to reported error.\n');
+                validity = false;
             end
         end
     end 

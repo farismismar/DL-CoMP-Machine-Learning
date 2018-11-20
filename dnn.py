@@ -56,10 +56,12 @@ ss = None # The scaler forward def
 
 def initialize_wrapper(random_state):
     global seed
+    global model
     seed = random_state
     np.random.seed(random_state)
+    model = None
     
-def predict_wrapper(filename): # filename = newX.mat
+def predict_wrapper(filename): # filename = 'newX.mat'
     data = loadmat(filename) # this is a dict.
 
 #    keys = list(data.keys())[3:] # skip the first three columns
@@ -111,13 +113,7 @@ def train_wrapper(filename): # filename='measurements.mat'
 
     # Perform a split 30-70
     train, test = train_test_split(dataset, test_size = 0.30, random_state = seed)
-
-    # TO DO
-    # Ordinal variables
-    # No need for dummy coding here, just a quick replace.
-    #train['Status'].replace(['Show-Up', 'No-Show'], [0, 1],inplace=True)
-    #test['Status'].replace(['Show-Up', 'No-Show'], [0, 1],inplace=True)
-    
+  
     X_train = train.drop('y', axis = 1)
     X_test = test.drop('y', axis = 1)
     
@@ -136,7 +132,7 @@ def train_wrapper(filename): # filename='measurements.mat'
         X_train = train_undersample.drop('y', axis = 1)
         y_train = train_undersample['y']
     except:
-        print('Undersampling failed')
+        print('Undersampling failed.  Model is invalid.')
         return [None, None, -1] # model is invalid
 
     ss = MinMaxScaler(feature_range=(0,1))
@@ -154,7 +150,7 @@ def train_wrapper(filename): # filename='measurements.mat'
 
     hyperparameters = dict(width=width_dims, depth=n_hiddens, act=activators)
     
-    grid = GridSearchCV(estimator=model, param_grid=hyperparameters, n_jobs=-1, cv=5)
+    grid = GridSearchCV(estimator=model, param_grid=hyperparameters, n_jobs=1, cv=5)
     grid_result = grid.fit(X_train_sc, y_train)
     
     # This is the best model
