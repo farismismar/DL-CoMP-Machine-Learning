@@ -14,7 +14,7 @@ global CoMPDecisions;
 
 startTime = tic;
 
-Q = 10; % UEs per eNodeB
+Q = 15; % UEs per eNodeB
 
 % This is T_CoMP
 global dComp;
@@ -34,7 +34,7 @@ rng(seed,'twister');
 global staticCoMP;
 
 global model_choice;
-model_choice = 'svm'; % svm or dnn
+model_choice = 'dnn'; % svm or dnn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin

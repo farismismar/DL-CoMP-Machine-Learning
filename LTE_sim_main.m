@@ -677,7 +677,7 @@ else
 
             % Trigger DL CoMP if the trigger achieves min cutoff...
             % prctile(newX(:,1),[5,50,95])
-            trigger = prctile(newX(:,1), 90)
+            trigger = prctile(newX(:,1), 90);
             if (trigger >= DLCoMPSINRMin)
                 LTE_config.CoMP_configuration = 'global'; % enable for the next TTI
                 CoMPDecisions = [CoMPDecisions;1];
