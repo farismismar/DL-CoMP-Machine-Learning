@@ -5,18 +5,22 @@ function [output_results_file, pregenerated_ff, LTE_config] = LTE_sim_main(LTE_c
 %
 
 % Faris
-% Run it once:
-% pyversion '/Library/Frameworks/Python.framework/Versions/3.6/bin/python3'
-
-% Invoke Python code
-module = py.importlib.import_module('dnn'); % a pointer to dnn.py
-py.importlib.reload(module);
-
-py.importlib.import_module('os');
-
 global seed;
 global model_choice; % are we using dnn or svm?
-py.dnn.initialize_wrapper(int64(seed));
+
+if (model_choice == 'dnn')
+    % Run it once:
+    % pyversion '/Library/Frameworks/Python.framework/Versions/3.6/bin/python3'
+
+    % Invoke Python code
+    module = py.importlib.import_module('dnn'); % a pointer to dnn.py
+    py.importlib.reload(module);
+
+    py.importlib.import_module('os');
+
+    py.dnn.initialize_wrapper(int64(seed));
+end
+
 fall_back = false; % is the ML model unable to predict?  Fall back to static CoMP.
 validity = false;  % is the ML model valid?
 % End Faris
@@ -676,15 +680,17 @@ else
             newX = newX(~isnan(newX(:,2)),:);
 
             % Trigger DL CoMP if the trigger achieves min cutoff...
-            % prctile(newX(:,1),[5,50,95])
-            trigger = prctile(newX(:,1), 90);
+            trigger = prctile(newX(:,1), 5)
+            %[prctile(newX(:,1), [50,90]), mean(newX(:,1))] % debugging
             if (trigger >= DLCoMPSINRMin)
                 LTE_config.CoMP_configuration = 'global'; % enable for the next TTI
+                LTE_config.maxStreams = 1;
                 CoMPDecisions = [CoMPDecisions;1];
                 fprintf('CoMP Cluster: DL CoMP decision is ENABLE.\n');  
             else
-                LTE_config.CoMP_configuration = 'trival'; % disable for the next TTI
+                LTE_config.CoMP_configuration = 'trivial'; % disable for the next TTI
                 CoMPDecisions = [CoMPDecisions;0];
+                LTE_config.maxStreams = min(LTE_config.nTX, LTE_config.nRX);
                 fprintf('CoMP Cluster: DL CoMP decision is DISABLE.\n');
             end
         end

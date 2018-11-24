@@ -4,7 +4,6 @@ clear all
 clear global;
 clear classes;
 
-
 % Must be run from terminal to inherit all env variables.
 % https://stackoverflow.com/questions/45733111/importing-tensorflow-in-matlab-via-python-interface
 
@@ -14,7 +13,7 @@ global CoMPDecisions;
 
 startTime = tic;
 
-Q = 15; % UEs per eNodeB
+Q = 10; % UEs per eNodeB
 
 % This is T_CoMP
 global dComp;
@@ -22,7 +21,7 @@ dComp = 3; % TTIs.
 Total_Time = 20*dComp - 1;  % 20
 
 global DLCoMPSINRMin;
-DLCoMPSINRMin = 3;
+DLCoMPSINRMin = -7;
 
 global epsilon;
 
@@ -34,7 +33,7 @@ rng(seed,'twister');
 global staticCoMP;
 
 global model_choice;
-model_choice = 'dnn'; % svm or dnn
+model_choice = 'svm'; % svm or dnn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin
@@ -43,11 +42,11 @@ staticCoMP = false;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if (model_choice == 'svm')
-    epsilon = 0.12;  % for Error
+    epsilon = 0.25;  % for Error
 end
 
 if (model_choice == 'dnn')
-    epsilon = 0.6;  % for AUC
+    epsilon = 0.9;  % for AUC
 end
 
 simulation_type = 'tri_sector_plus_femtocells';
@@ -114,7 +113,7 @@ LTE_config.UE.nRX                     = 2;
 LTE_config.UE.receiver_noise_figure   = 7; % 7dB
 %LTE_config.UE_cache_file              = 'auto';
 LTE_config.adaptive_RI                = 0;
-LTE_config.keep_UEs_still             = true;
+LTE_config.keep_UEs_still             = false;
 LTE_config.UE_per_eNodeB              = Q;
 LTE_config.UE_speed                   = 5/3.6; % Speed at which the UEs move. In meters/second: 5 Km/h = 1.38 m/s
 LTE_config.map_resolution             = 1;  % the highest resolution.
