@@ -40,7 +40,7 @@ from sklearn.metrics import roc_curve, auc
 from scipy.io import loadmat
 
 # Set the random seed
-seed = 3
+seed = 7
 import tensorflow as tf
 tf.set_random_seed(seed)
 
@@ -55,7 +55,7 @@ model = None # the forward definition.
 ss = None # The scaler forward def
 
 # import os
-
+# os.chdir('/Users/farismismar/Desktop/Delete me after running/LTE-A-DL-System-Level-Simulator-Rel-v1-9-Q2-2016')
 def initialize_wrapper(random_state):
     global seed
     global model
@@ -106,15 +106,14 @@ def train_wrapper(filename): # filename='measurements.mat'
     for ii in np.arange(len(values)):
         v_ = np.array(values[ii])
         dataset[keys[ii]] = pd.Series(v_.flatten()) # cannot add the data to this empty df.
-        
-
+       
 #    print(dataset)
     
     dataset['y'] = 1*(dataset['BLER'] <= 0.1) # H-ARQ target.
     dataset = dataset.drop(['BLER', 'CQI'], axis=1)
 
     # Perform a split 30-70
-    train, test = train_test_split(dataset, test_size = 0.30, random_state = seed)
+    train, test = train_test_split(dataset, test_size=0.30, random_state=seed)
   
     X_train = train.drop('y', axis = 1)
     X_test = test.drop('y', axis = 1)
@@ -126,51 +125,57 @@ def train_wrapper(filename): # filename='measurements.mat'
     mY = y_train.shape
     nY = 1
     
-    # Now undersample
+#    # Now undersample
+#    try:
+#        train_c0 = train[(y_train == 0)]
+#        train_c1= train[(y_train == 1)].sample(train_c0.shape[0], random_state=seed)
+#        train_undersample = train_c1.append(train_c0)
+#        X_train = train_undersample.drop('y', axis=1)
+#        y_train = train_undersample['y']
+#    except:
+#        print('Warning: Single class only.  Model is invalid.')
+#        return [None, None, -1] # model is invalid
+
     try:
-        train_c0 = train[(y_train == 0)]
-        train_c1= train[(y_train == 1)].sample(train_c0.shape[0], random_state=seed)
-        train_undersample = train_c1.append(train_c0)
-        X_train = train_undersample.drop('y', axis = 1)
-        y_train = train_undersample['y']
+        ss = MinMaxScaler(feature_range=(0,1))
+        # Scale the variables
+        X_train_sc = ss.fit_transform(X_train)
+        X_test_sc = ss.transform(X_test)
+
+        #model = KerasClassifier(build_fn=create_mlp, verbose=0, epochs=5, batch_size=64)
+        model = KerasClassifier(build_fn=create_mlp, verbose=0, epochs=20, batch_size=mX)
+
+        # The hyperparameters
+        width_dims=[1,3]
+        n_hiddens = [0,1,3] # the depth of hidden layers
+        activators = ['sigmoid', 'relu'] # 'softmax']
+
+        hyperparameters = dict(width=width_dims, depth=n_hiddens, act=activators)
+
+        print(seed)
+
+        grid = GridSearchCV(estimator=model, param_grid=hyperparameters, n_jobs=1, cv=5)
+        grid_result = grid.fit(X_train_sc, y_train)
+
+        # This is the best model
+        best_model_mlp = grid_result.best_params_
+        print(best_model_mlp)
+
+        mlp = grid_result.best_estimator_
+        model = mlp # the final model
+
+    #    y_pred_dnn = mlp.predict(X_test_sc)
+        y_score_dnn = mlp.predict_proba(X_test_sc)
+
+        # Compute ROC curve and ROC area
+        fpr_mlp, tpr_mlp, _ = roc_curve(y_test, y_score_dnn[:,1])
+        roc_auc_mlp = auc(fpr_mlp, tpr_mlp)
+
+        print('ROC has an AUC of {:.2f}.'.format(roc_auc_mlp))
     except:
-        print('Undersampling failed.  Model is invalid.')
+        print('Training deep NN failed.  Model is invalid.')
         return [None, None, -1] # model is invalid
 
-    ss = MinMaxScaler(feature_range=(0,1))
-    
-    # Scale the variables
-    X_train_sc = ss.fit_transform(X_train)
-    X_test_sc = ss.transform(X_test)
-    
-    model = KerasClassifier(build_fn=create_mlp, verbose=1, epochs=5, batch_size=64)
-
-    # The hyperparameters
-    width_dims=[1,3]
-    n_hiddens = [0,1,3] # the depth of hidden layers
-    activators = ['sigmoid', 'relu']
-
-    hyperparameters = dict(width=width_dims, depth=n_hiddens, act=activators)
-    
-    grid = GridSearchCV(estimator=model, param_grid=hyperparameters, n_jobs=1, cv=5)
-    grid_result = grid.fit(X_train_sc, y_train)
-    
-    # This is the best model
-    best_model_mlp = grid_result.best_params_
-    print(best_model_mlp)
- 
-    mlp = grid_result.best_estimator_
-#    mlp.fit(X_train_sc, y_train)
-    model = mlp # the final model
-    
-#    y_pred_dnn = mlp.predict(X_test_sc)
-    y_score_dnn = mlp.predict_proba(X_test_sc)
-
-    # Compute ROC curve and ROC area
-    fpr_mlp, tpr_mlp, _ = roc_curve(y_test, y_score_dnn[:,1])
-    roc_auc_mlp = auc(fpr_mlp, tpr_mlp)
-    
-    print('ROC: Attempt {0} has an AUC of {1:.2f}.'.format(episode_count, roc_auc_mlp))
 #    plt.figure(figsize=(13,8))
 #    
 #    plt.plot(fpr_mlp, tpr_mlp,
@@ -195,9 +200,9 @@ def train_wrapper(filename): # filename='measurements.mat'
 # create model
 def create_mlp(width, depth, act):
     mlp = Sequential()
-    mlp.add(Dense(units=width, input_dim=nX, activation=act))
+    mlp.add(Dense(units=width, input_dim=nX, activation=act, use_bias=True))
     for k in np.arange(depth): # the depth of the neural network
-        mlp.add(Dense(width, use_bias=False))
+        mlp.add(Dense(width, use_bias=True))
 
     mlp.add(Dense(units=nY, input_dim=width, activation=act))
 
