@@ -1,11 +1,10 @@
-function [validity, inverted, model] = estimateCoMPSettings(simulation_data, isStatic)
+function [validity, inverted, model] = estimateCoMPSettings(simulation_data, isStatic, is_dnn)
     validity = false;
     inverted = false;
     model = [];
     
     global epsilon;
-    global model_choice;
-    
+        
     if ~isStatic
         CQI = [];         
         RSRP = [];
@@ -34,8 +33,8 @@ function [validity, inverted, model] = estimateCoMPSettings(simulation_data, isS
         CQI = CQI(inclusion);
         TBSINR = TBSINR(inclusion);
          
-        if (model_choice == 'svm')
-            [err,model] = SVM(TBSINR,RSRP,BLER);
+        if (~is_dnn)
+            [err,model] = SVM(TBSINR,RSRP,BLER,false);
             
             if (err > epsilon)
                 validity = false;
@@ -45,38 +44,20 @@ function [validity, inverted, model] = estimateCoMPSettings(simulation_data, isS
                 
         end
         
-        if (model_choice == 'dnn')
+        if (is_dnn)
             % Create a structure
             data.RSRP = RSRP;
             data.BLER = BLER;
             data.CQI = CQI;
             data.TBSINR = TBSINR;
 
-            filename = 'measurements.mat';
-            save(filename, '-struct', 'data')
-            ret_vals = py.dnn.train_wrapper(filename);  % TODO 11/1 train the model
-
-            auc=ret_vals(3);   % The area under ROC curve based on a split test data from the data collected.
-
-            auc_roc = auc{1};
-            %fprintf('Test AUC ROC =  %.3f.\n', double(auc_roc));
+            [err,model] = SVM(TBSINR,RSRP,BLER,true);
             
-            if (auc_roc > 0)
-                % Inverted decisions.
-                if (auc_roc < 0.5) 
-                    auc_roc = 1 - auc_roc;
-                    inverted = true;
-                    fprintf('Warning: Test AUC ROC < 0.5 is complemented and the decision is inverted.\n');
-                end
-
-                if (auc_roc < epsilon) 
-                    validity = false;
-                else
-                    validity = true;
-                end
-            else
-                fprintf('Warning: Model is not valid due to reported error.\n');
+            if (err > epsilon)
                 validity = false;
+            else
+                validity = true;
             end
+                
         end
     end 
