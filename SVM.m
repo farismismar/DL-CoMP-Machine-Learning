@@ -1,6 +1,8 @@
 % http://www.mathworks.com/help/stats/support-vector-machines-svm.html
-function [error, SVMModel] = SVM(x1,x2,x3)
+function [error, SVMModel] = SVM(x1,x2,x3,is_dnn)
 global epsilon;
+
+rng(0);
 
 %newX has the format [CQI, RSRP]
 X = [x1,x2];
@@ -29,14 +31,26 @@ Y_training = Y;
 
 %  'KernelFunction', 'rbf', ... %rbf linear gaussian polynomial
 try
-	% K-Fold cross validation with K = 5
-    SVMModel = fitcsvm(X_training, Y_training, ...
-        'ClassNames',[0 1], ...
-        'Standardize', true, ...
-        'OptimizeHyperparameters','all', ...
-        'HyperparameterOptimizationOptions',struct('MaxObjectiveEvaluations', 5, ...
-            'ShowPlots', false)); 
+    if (is_dnn)
+        % This is DNN-like
+        SVMModel = fitcsvm(X_training, Y_training, ...
+            'ClassNames',[0 1], ...
+            'Standardize', true, ...
+            'KernelFunction', 'mysigmoid');
+    else 
+        % This is SVM
+        SVMModel = fitcsvm(X_training, Y_training, ...
+            'ClassNames',[0 1], ...
+            'Standardize', true, ...
+            'OptimizeHyperparameters','all', ...
+            'HyperparameterOptimizationOptions',struct('MaxObjectiveEvaluations', 5, ...
+                'ShowPlots', false)); 
+    end
 
+    % Perform K-Fold Cross Validation
+    %CVSVMModel = crossval(SVMModel, 'Kfold', 3);
+    % error = 1 - mean(kfoldPredict(CVSVMModel) == Y_training);  % very strange from MATLAB!
+    
     % Test error
     Y_hat = predict(SVMModel, X_test);
     error = 1 - mean(Y_hat == Y_test);
@@ -48,8 +62,10 @@ try
         fprintf('CoMP Cluster: SVM error is too high.  Using operator setting.\n');
         return
     end
-catch ME
+catch ME 
     error = 1;
     fprintf('CoMP Cluster: Classification cannot be obtained.  Skipped.\n');
     SVMModel = [];
 end
+
+
