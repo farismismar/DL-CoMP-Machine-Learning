@@ -21,7 +21,7 @@ dComp = 3; % TTIs.
 Total_Time = 20*dComp - 1;  % 20
 
 global DLCoMPSINRMin;
-DLCoMPSINRMin = -7;
+DLCoMPSINRMin = -9;
 
 global epsilon;
 
@@ -42,11 +42,11 @@ staticCoMP = false;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if (model_choice == 'svm')
-    epsilon = 0.25;  % for Error
+    epsilon = 0.27;  % for Error
 end
 
 if (model_choice == 'dnn')
-    epsilon = 0.9;  % for AUC
+    epsilon = 0.27;  % for Error
 end
 
 simulation_type = 'tri_sector_plus_femtocells';
@@ -102,7 +102,7 @@ LTE_config.antenna.frequency = 2140;
 LTE_config.add_femtocells             = true;  % femto but configured as a pico with power
 LTE_config.femtocells_config.tx_power_W = 10^((37-30)/10); % 37 dBm is 5W.
 LTE_config.femtocells_config.spatial_distribution = 'homogenous density';
-LTE_config.femtocells_config.femtocells_per_km2 = 3; %50; % 3 for case 1 and 50 for case 2
+LTE_config.femtocells_config.femtocells_per_km2 = 10; % 3 for case 1 and 10 for case 2
 %LTE_config.femtocells_config.macroscopic_pathloss_model = 'cost231'; % 'dual slope'
 
 LTE_config.compact_results_file       = true;
