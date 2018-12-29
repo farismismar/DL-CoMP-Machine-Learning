@@ -13,15 +13,15 @@ global CoMPDecisions;
 
 startTime = tic;
 
-Q = 10; % UEs per eNodeB
+Q = 10; % UEs per BS
 
 % This is T_CoMP
 global dComp;
 dComp = 3; % TTIs.
-Total_Time = 20*dComp - 1;  % 20
+Total_Time = 5*dComp - 1;  % 4 
 
 global DLCoMPSINRMin;
-DLCoMPSINRMin = -9;
+DLCoMPSINRMin = -11;  % -7 dB  
 
 global epsilon;
 
@@ -33,11 +33,11 @@ rng(seed,'twister');
 global staticCoMP;
 
 global model_choice;
-model_choice = 'svm'; % svm or dnn
+model_choice = 'dnn'; % svm or dnn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin
-staticCoMP = false;
+staticCoMP = true;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -102,7 +102,7 @@ LTE_config.antenna.frequency = 2140;
 LTE_config.add_femtocells             = true;  % femto but configured as a pico with power
 LTE_config.femtocells_config.tx_power_W = 10^((37-30)/10); % 37 dBm is 5W.
 LTE_config.femtocells_config.spatial_distribution = 'homogenous density';
-LTE_config.femtocells_config.femtocells_per_km2 = 10; % 3 for case 1 and 10 for case 2
+LTE_config.femtocells_config.femtocells_per_km2 = 100; 
 %LTE_config.femtocells_config.macroscopic_pathloss_model = 'cost231'; % 'dual slope'
 
 LTE_config.compact_results_file       = true;
@@ -116,7 +116,7 @@ LTE_config.adaptive_RI                = 0;
 LTE_config.keep_UEs_still             = false;
 LTE_config.UE_per_eNodeB              = Q;
 LTE_config.UE_speed                   = 5/3.6; % Speed at which the UEs move. In meters/second: 5 Km/h = 1.38 m/s
-LTE_config.map_resolution             = 1;  % the highest resolution.
+LTE_config.map_resolution             = 20;  % 1 % the highest resolution.  WARNING: Making it too small compared to ISD will cause cells with 0 UEs!
 LTE_config.pregenerated_ff_file       = 'auto';
 LTE_config.trace_version              = 'v1';    % 'v1' for pregenerated precoding. 'v2' for run-time-applied precoding
 
@@ -125,26 +125,6 @@ LTE_config.simulation_time_tti        = Total_Time;  %LTE_config.UE.antenna_gain
 output_results_file = LTE_sim_main(LTE_config); % This is the main line... do not re run it unless you know what you are doing.
 %%%%%%%%%%%%%
 simulation_data                   = load(output_results_file);
-
-% Manually place sites
-%simulation_data.sites(1).pos      = [0 0];  % Macro
-%simulation_data.sites(2).pos      = [cos(2*pi/3) sin(2*pi/3)] * LTE_config.inter_eNodeB_distance;
-%simulation_data.sites(3).pos      = [cos(240*pi/180) sin(240*pi/180)] * LTE_config.inter_eNodeB_distance;
-%simulation_data.sites(4).pos      = [cos(360*pi/180) sin(360*pi/180)] * LTE_config.inter_eNodeB_distance;
-
-% Case 1: 
-% Site 1 = Macro
-% Sites 2, 3, 4 = Femto
-% [simulation_data.sites.site_type] macro or femto
-% [simulation_data.sites.id] what site IDs are there
-% simulation_data.sites(3).sectors.eNodeB_id which cell IDs are in site 3
-%simulation_data.sites(2).site_type = 'femto';
-%simulation_data.sites(3).site_type = 'femto';  
-%simulation_data.sites(4).site_type = 'femto';  
-
-% Case 2:
-% 7 macro cells and 8-18 are pico/femto, which correspond to cells
-% 22-32.
 GUI_handles.aggregate_results_GUI = LTE_GUI_show_aggregate_results(simulation_data);
 GUI_handles.positions_GUI         = LTE_GUI_show_UEs_and_cells(simulation_data,GUI_handles.aggregate_results_GUI);
 
@@ -155,7 +135,13 @@ grid on;
 xlabel('TTI')
 ylabel('CoMP Decision')
 ylim([-2,2])
-matlab2tikz('comp_decisions.tikz');
+
+if (staticCoMP)
+    dec_file = 'static_comp_decisions.tikz';
+else
+    dec_file = sprintf('%s_comp_decisions.tikz', model_choice);
+end
+matlab2tikz(dec_file);
 
 endTime = toc(startTime);
 fprintf('Simulation: total time = %1.5f sec.\n', endTime);

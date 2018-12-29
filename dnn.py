@@ -4,22 +4,22 @@ Created on Thu April 28 20:46:45 2017
 
 @author: farismismar
 """
-# # Use these lines to force GPU
-# import os
-# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-# # The GPU id to use, usually either "0" or "1"
-# os.environ["CUDA_VISIBLE_DEVICES"]="0" 
-# ###################################################
+# Use these lines to force GPU
+import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+# The GPU id to use, usually either "0" or "1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0" 
+###################################################
 
-# # Do other imports now...
-# import tensorflow as tf
-# config = tf.ConfigProto()
-# config.gpu_options.per_process_gpu_memory_fraction = 0.3
+# Do other imports now...
+import tensorflow as tf
+config = tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction = 0.3
 
-# from keras.backend.tensorflow_backend import set_session
-# set_session(tf.Session(config=config))
+from keras.backend.tensorflow_backend import set_session
+set_session(tf.Session(config=config))
 
-# import keras
+import keras
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -39,8 +39,10 @@ from sklearn.metrics import roc_curve, auc
 
 from scipy.io import loadmat
 
+#os.chdir('/Users/farismismar/Desktop/E_Projects/UT Austin Ph.D. EE/Papers/Journals/1- Deep Learning in Downlink Coordinated Multipoint in New Radio Heterogeneous Networks/Simulation/LTE-A-DL-System-Level-Simulator-Rel-v1-9-Q2-2016')
+
 # Set the random seed
-seed = 7
+seed = 3
 import tensorflow as tf
 tf.set_random_seed(seed)
 
@@ -54,30 +56,15 @@ episode_count = 0
 model = None # the forward definition.
 ss = None # The scaler forward def
 
-# import os
-# os.chdir('/Users/farismismar/Desktop/Delete me after running/LTE-A-DL-System-Level-Simulator-Rel-v1-9-Q2-2016')
 def initialize_wrapper(random_state):
     global seed
-    global model
     seed = random_state
     np.random.seed(random_state)
-    model = None
     
-def predict_wrapper(filename): # filename = 'newX.mat'
-    data = loadmat(filename) # this is a dict.
+def predict_wrapper(RSRP, SINR):
+    X_test = pd.DataFrame({'RSRP': RSRP,
+                           'TBSINR': SINR}, index=[0])
 
-#    keys = list(data.keys())[3:] # skip the first three columns
-    values = list(data.values())[3:]
-    
-    a = []
-    for sublist in values:
-        for items in sublist:
-            a.append(items)
-            
-    X_test = pd.DataFrame(a)
-    del a
-    X_test.columns = ['SINR', 'RSRP']
-    
     global model
     global y_pred
     global ss
@@ -106,15 +93,22 @@ def train_wrapper(filename): # filename='measurements.mat'
     for ii in np.arange(len(values)):
         v_ = np.array(values[ii])
         dataset[keys[ii]] = pd.Series(v_.flatten()) # cannot add the data to this empty df.
-       
+        
+
 #    print(dataset)
     
     dataset['y'] = 1*(dataset['BLER'] <= 0.1) # H-ARQ target.
     dataset = dataset.drop(['BLER', 'CQI'], axis=1)
 
     # Perform a split 30-70
-    train, test = train_test_split(dataset, test_size=0.30, random_state=seed)
-  
+    train, test = train_test_split(dataset, test_size = 0.30, random_state = seed)
+
+    # TO DO
+    # Ordinal variables
+    # No need for dummy coding here, just a quick replace.
+    #train['Status'].replace(['Show-Up', 'No-Show'], [0, 1],inplace=True)
+    #test['Status'].replace(['Show-Up', 'No-Show'], [0, 1],inplace=True)
+    
     X_train = train.drop('y', axis = 1)
     X_test = test.drop('y', axis = 1)
     
@@ -125,57 +119,51 @@ def train_wrapper(filename): # filename='measurements.mat'
     mY = y_train.shape
     nY = 1
     
-#    # Now undersample
-#    try:
-#        train_c0 = train[(y_train == 0)]
-#        train_c1= train[(y_train == 1)].sample(train_c0.shape[0], random_state=seed)
-#        train_undersample = train_c1.append(train_c0)
-#        X_train = train_undersample.drop('y', axis=1)
-#        y_train = train_undersample['y']
-#    except:
-#        print('Warning: Single class only.  Model is invalid.')
-#        return [None, None, -1] # model is invalid
-
+    # Now undersample
     try:
-        ss = MinMaxScaler(feature_range=(0,1))
-        # Scale the variables
-        X_train_sc = ss.fit_transform(X_train)
-        X_test_sc = ss.transform(X_test)
-
-        #model = KerasClassifier(build_fn=create_mlp, verbose=0, epochs=5, batch_size=64)
-        model = KerasClassifier(build_fn=create_mlp, verbose=0, epochs=20, batch_size=mX)
-
-        # The hyperparameters
-        width_dims=[1,3]
-        n_hiddens = [0,1,3] # the depth of hidden layers
-        activators = ['sigmoid', 'relu'] # 'softmax']
-
-        hyperparameters = dict(width=width_dims, depth=n_hiddens, act=activators)
-
-        print(seed)
-
-        grid = GridSearchCV(estimator=model, param_grid=hyperparameters, n_jobs=1, cv=5)
-        grid_result = grid.fit(X_train_sc, y_train)
-
-        # This is the best model
-        best_model_mlp = grid_result.best_params_
-        print(best_model_mlp)
-
-        mlp = grid_result.best_estimator_
-        model = mlp # the final model
-
-    #    y_pred_dnn = mlp.predict(X_test_sc)
-        y_score_dnn = mlp.predict_proba(X_test_sc)
-
-        # Compute ROC curve and ROC area
-        fpr_mlp, tpr_mlp, _ = roc_curve(y_test, y_score_dnn[:,1])
-        roc_auc_mlp = auc(fpr_mlp, tpr_mlp)
-
-        print('ROC has an AUC of {:.2f}.'.format(roc_auc_mlp))
+        train_c0 = train[(y_train == 0)]
+        train_c1= train[(y_train == 1)].sample(train_c0.shape[0], random_state=seed)
+        train_undersample = train_c1.append(train_c0)
+        X_train = train_undersample.drop('y', axis = 1)
+        y_train = train_undersample['y']
     except:
-        print('Training deep NN failed.  Model is invalid.')
+        print('Undersampling failed')
         return [None, None, -1] # model is invalid
 
+    ss = MinMaxScaler(feature_range=(0,1))
+    
+    # Scale the variables
+    X_train_sc = ss.fit_transform(X_train)
+    X_test_sc = ss.transform(X_test)
+    
+    model = KerasClassifier(build_fn=create_mlp, verbose=0, epochs=5, batch_size=32)
+
+    # The hyperparameters
+    width_dims=[3,5]
+    n_hiddens = [1,3] # the depth of hidden layers
+    activators = ['sigmoid', 'relu'] # 'softmax']
+
+    hyperparameters = dict(width=width_dims, depth=n_hiddens, act=activators)
+    
+    grid = GridSearchCV(estimator=model, param_grid=hyperparameters, n_jobs=1, cv=5)
+    grid_result = grid.fit(X_train_sc, y_train)
+    
+    # This is the best model
+    best_model_mlp = grid_result.best_params_
+    print(best_model_mlp)
+ 
+    mlp = grid_result.best_estimator_
+    mlp.fit(X_train_sc, y_train)
+    model = mlp # the final model
+    
+#    y_pred_dnn = mlp.predict(X_test_sc)
+    y_score_dnn = mlp.predict_proba(X_test_sc)
+
+    # Compute ROC curve and ROC area
+    fpr_mlp, tpr_mlp, _ = roc_curve(y_test, y_score_dnn[:,1])
+    roc_auc_mlp = auc(fpr_mlp, tpr_mlp)
+    
+    print('ROC: Attempt {0} has an AUC of {1:.2f}.'.format(episode_count, roc_auc_mlp))
 #    plt.figure(figsize=(13,8))
 #    
 #    plt.plot(fpr_mlp, tpr_mlp,
@@ -200,7 +188,7 @@ def train_wrapper(filename): # filename='measurements.mat'
 # create model
 def create_mlp(width, depth, act):
     mlp = Sequential()
-    mlp.add(Dense(units=width, input_dim=nX, activation=act, use_bias=True))
+    mlp.add(Dense(units=width, input_dim=nX, activation=act))
     for k in np.arange(depth): # the depth of the neural network
         mlp.add(Dense(width, use_bias=True))
 

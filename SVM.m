@@ -8,7 +8,7 @@ rng(seed);
 %newX has the format [SINR/CQI, RSRP]
 X = [x1,x2];
 Y = (x3 <= 0.1);  % Did BLER target fulfillment succeed?
-
+K = 5; % k fold
 split = 0.7;
  
 % Split 
@@ -45,9 +45,30 @@ try
         % Train the network noting that the first entry in size is the number
         % of columns (i.e., 2 for X and 1 for Y).
         setdemorandstream(seed);
-        model = patternnet(10);
-        [model,~] = train(model,X_training',Y_training');
         
+        optimal_model = 0;
+        min_cv_error = inf;
+        
+        for validation=1:K
+            % max width 1, 3 only
+            params = {1,3,[1,1,1],[3,3,3],[3,3,3,3,3]};  % this shows depths: 1, 3, and 5.
+            model = patternnet(params{validation});
+            [model,~] = train(model,X_training',Y_training');
+        
+            Y_pred = model(X_test');
+            Y_pred = round(Y_pred');
+            % Cross validation error
+            cv_error = 1 - mean(Y_pred == Y_test);
+            fprintf('CV %d error is %3f.\n', validation, cv_error);
+            roc = roc_curve(Y_pred, Y_test,0,0); % https://www.mathworks.com/matlabcentral/fileexchange/52442-roc-curve
+            fprintf('AUC ROC is %3f.\n', roc.param.AROC);
+            if (cv_error < min_cv_error)     
+                optimal_model = model;
+                min_cv_error = cv_error;
+            end
+        end
+      
+        model = optimal_model;
         Y_pred = model(X_test');
         Y_pred = round(Y_pred');
     else 
@@ -56,7 +77,7 @@ try
             'ClassNames',[0 1], ...
             'Standardize', true, ...
             'OptimizeHyperparameters','all', ...
-            'HyperparameterOptimizationOptions',struct('MaxObjectiveEvaluations', 5, ...
+            'HyperparameterOptimizationOptions',struct('MaxObjectiveEvaluations', K, ...
                 'ShowPlots', false)); 
             
         Y_pred = predict(model, X_test);
@@ -81,5 +102,3 @@ catch ME
     fprintf('CoMP Cluster: Classification cannot be obtained.  Skipped.\n');
     model = [];
 end
-
-
