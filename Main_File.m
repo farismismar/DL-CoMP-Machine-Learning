@@ -18,10 +18,10 @@ Q = 10; % UEs per BS
 % This is T_CoMP
 global dComp;
 dComp = 3; % TTIs.
-Total_Time = 5*dComp - 1;  % 4 
+Total_Time = 10*dComp - 1;  % 4 
 
 global DLCoMPSINRMin;
-DLCoMPSINRMin = -11;  % -7 dB  
+DLCoMPSINRMin = -3.5; % dB  on average.
 
 global epsilon;
 
@@ -33,20 +33,20 @@ rng(seed,'twister');
 global staticCoMP;
 
 global model_choice;
-model_choice = 'dnn'; % svm or dnn
+model_choice = 'svm'; % svm or dnn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin
-staticCoMP = true;
+staticCoMP = false;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if (model_choice == 'svm')
-    epsilon = 0.27;  % for Error
+    epsilon = 0.15;  % for Error
 end
 
 if (model_choice == 'dnn')
-    epsilon = 0.27;  % for Error
+    epsilon = 0.15;  % for Error
 end
 
 simulation_type = 'tri_sector_plus_femtocells';

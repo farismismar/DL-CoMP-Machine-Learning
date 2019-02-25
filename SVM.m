@@ -20,6 +20,14 @@ Y_test = Y(round(length(Y)*split)+1:end,:);
 X_training = X;
 Y_training = Y;
 
+% Classification balance is shown here:
+fprintf('----------------------\n');
+fprintf('Training data imbalance \n');
+fprintf('----------------------\n');
+fprintf('Class 0: %d\n', numel(Y(Y == 0)));
+fprintf('Class 1: %d\n', numel(Y(Y == 1)));
+fprintf('----------------------\n');
+
 %figure, histogram(Y_training, 'BinWidth', 0.2)
 %grid on
 
@@ -50,9 +58,10 @@ try
         min_cv_error = inf;
         
         for validation=1:K
-            % max width 1, 3 only
-            params = {1,3,[1,1,1],[3,3,3],[3,3,3,3,3]};  % this shows depths: 1, 3, and 5.
-            model = patternnet(params{validation});
+            % depths are 3 and 10
+            params = {3,10,[3,3,3],[10,10,10],[3,3,3,3,3],[10,10,10,10,10]};  % this shows depths: 1, 3, and 5.
+            model = patternnet(params{validation}); % default is cross entropy 
+            model.layers{:}.transferFcn = 'poslin'; % use ReLU
             [model,~] = train(model,X_training',Y_training');
         
             Y_pred = model(X_test');
@@ -73,10 +82,11 @@ try
         Y_pred = round(Y_pred');
     else 
         % This is SVM
+        %'OptimizeHyperparameters','all', ...
+            %'Standardize', true, ...
+            
         model = fitcsvm(X_training, Y_training, ...
             'ClassNames',[0 1], ...
-            'Standardize', true, ...
-            'OptimizeHyperparameters','all', ...
             'HyperparameterOptimizationOptions',struct('MaxObjectiveEvaluations', K, ...
                 'ShowPlots', false)); 
             
