@@ -5,8 +5,12 @@ clear java;
 clearvars
 
 clear classes;
-module = py.importlib.import_module('ml_svm'); % a pointer to ml.py
+module = py.importlib.import_module('ml'); % a pointer to ml.py
 py.importlib.reload(module); % not always working.  Restart matlab everytime.
+
+if exist('dataset.csv', 'file') == 2
+  delete('dataset.csv');
+end
 
 % If you see an issue with gfortran, then rename
 % /Applications/MATLAB_R2016b.app/sys/os/maci64/libgfortran.3.dylib to 
@@ -38,7 +42,7 @@ dComp = 3; % TTIs.
 Total_Time = 10*dComp; 
 
 global DLCoMPSINRMin;
-DLCoMPSINRMin = 11.5;  % in dB on antenna 1
+DLCoMPSINRMin = 13.0;  % 12.5in dB on antenna 1
 
 global epsilon_auc;
 global epsilon_mu;
@@ -54,7 +58,7 @@ global staticCoMP;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % staticCoMP = false: dynamic algorithm
 %            = true: static cutoff based on DLCoMPSINRMin
-staticCoMP = true;
+staticCoMP = false;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -161,6 +165,7 @@ xlabel('TTI')
 ylabel('CoMP Decision')
 yticks([0 1])
 ylim([-1.5,1.5])
+fprintf('CoMP disable (y = 0) count: %d out of %d.\n', numel(find(CoMPenabled==0)), numel(CoMPenabled));
 
 endTime = toc(startTime);
 fprintf('Simulation: total time = %1.5f sec.\n', endTime);

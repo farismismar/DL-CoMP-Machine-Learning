@@ -81,10 +81,14 @@ def train_wrapper(filename): # filename='measurements.mat'
         v_ = np.array(values[ii])
         dataset[keys[ii]] = pd.Series(v_.flatten()) # cannot add the data to this empty df.
     
-    dataset['y'] = 1*(dataset['BLER'] <= 0.1) # H-ARQ target.
+    dataset['y'] = 1*(dataset['BLER'] <= 0.05) # H-ARQ target.
     dataset = dataset[['RSRP', 'TBSINR_1', 'rank', 'y']]
     dataset.dropna(inplace=True, axis=0)
-    
+    if os.path.exists('dataset.csv'):
+        dataset.to_csv('dataset.csv', index=False, mode='a', header=False) # append
+    else:
+        dataset.to_csv('dataset.csv', index=False)
+
     # Perform a split 30-70
     train, test = train_test_split(dataset, test_size=0.30, random_state=seed)
     
