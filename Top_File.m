@@ -34,7 +34,7 @@ global Total_Time;
 
 startTime = tic;
 
-Q = 10; % UEs per eNodeB
+Q = 7; % UEs per eNodeB
 
 % This is T_CoMP
 global dComp;
@@ -47,7 +47,7 @@ DLCoMPSINRMin = -3.5;  % dB on antenna 1
 global epsilon_auc;
 global epsilon_mu;
 epsilon_auc = 0.60;  % for AUC
-epsilon_mu = 0.25; % for misclass. error.
+epsilon_mu = 0.15; % for misclass. error.
 
 global seed;
 seed = 0;
@@ -91,7 +91,7 @@ LTE_config.RandStreamSeed             = seed;
 LTE_config.scheduler                  = 'prop fair Sun'; 
 LTE_config.network_source             = 'generated'; % hexagonals
 LTE_config.network_geometry           = 'regular_hexagonal_grid';
-LTE_config.nr_eNodeB_rings            = 0; %0; %1; % 1 ring basically means a center site plus six sites surrounding it
+LTE_config.nr_eNodeB_rings            = 1; %0; %1; % 1 ring basically means a center site plus six sites surrounding it
 LTE_config.inter_eNodeB_distance      = 100; % 100m apart.
 LTE_config.antenna_azimuth_offsett    = 30;  % Changes the reference of the azimuth at 0 degrees.
 LTE_config.macroscopic_pathloss_model = 'cost231'; % Good for HN and 2100 MHz simulations.
@@ -115,7 +115,7 @@ LTE_config.antenna.frequency = 2140;
 LTE_config.add_femtocells             = true;  % femto but configured as a pico with power
 LTE_config.femtocells_config.tx_power_W = 10^((37-30)/10); % 37 dBm is 5W.
 LTE_config.femtocells_config.spatial_distribution = 'homogenous density';
-LTE_config.femtocells_config.femtocells_per_km2 = 20; 
+LTE_config.femtocells_config.femtocells_per_km2 = 80; 
 LTE_config.femtocells_config.macroscopic_pathloss_model = 'dual slope';
 
 LTE_config.compact_results_file       = true;
