@@ -42,7 +42,7 @@ dComp = 3; % TTIs.
 Total_Time = 10*dComp; 
 
 global DLCoMPSINRMin;
-DLCoMPSINRMin = -5.0;  % dB on antenna 1
+DLCoMPSINRMin = -3.5;  % dB on antenna 1
 
 global epsilon_auc;
 global epsilon_mu;
